@@ -1,10 +1,3 @@
-# gocodi
-Golang dependency injector container
-
-## It's WIP and API could change
-
-# Example
-```go
 package main
 
 import (
@@ -59,5 +52,3 @@ func main() {
 	testDI := di.Get(&Test{}).(*Test)
 	fmt.Println("------", testDI.DepTest, testDI.Dep, testDI.getIP())
 }
-
-``` 
