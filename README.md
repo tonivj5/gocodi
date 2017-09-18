@@ -13,11 +13,16 @@ import (
 	"github.com/xxxtonixxx/gocodi/container"
 )
 
+type Salutor interface {
+	Hi() string
+}
+
 type Test struct {
 	IP      string `gocodi:"ip"`
 	test    string
 	DepTest *TestDep `gocodi:"test"`
 	Dep     *TestDep
+	Saluto  Salutor
 }
 
 func (h *Test) Hi() string {
@@ -55,9 +60,24 @@ func main() {
 		&container.Provider{Provide: "ip", Value: "192.168.1.1"},
 	)
 
+	// You can use an interface as provider and an struct
+	// which implements the interface as value
+	var token *Salutor
+	err = di.Provide(&container.Provider{Provide: token, Value: new(Test)})
+	if err != nil {
+		fmt.Printf("An error happenedd: %v\n", err)
+		return
+	}
+
 	// So you can get the dependency from injector.
 	testDI := di.Get(&Test{}).(*Test)
-	fmt.Println("------", testDI.DepTest, testDI.Dep, testDI.getIP())
+	fmt.Println(
+		"-->",
+		testDI.DepTest,
+		testDI.Dep,
+		testDI.getIP(),
+		testDI != testDI.Saluto,
+		testDI.Saluto.Hi(),
+	)
 }
-
 ``` 
