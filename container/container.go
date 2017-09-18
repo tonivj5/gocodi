@@ -12,26 +12,31 @@ type Container struct {
 }
 
 func (c *Container) Provide(provider *Provider) error {
-	if !reflect.ValueOf(provider.Provide).IsValid() {
+	tokenType := reflect.TypeOf(provider.Provide)
+	tokenValue := reflect.ValueOf(provider.Provide)
+	valueType := reflect.TypeOf(provider.Value)
+	valueValue := reflect.ValueOf(provider.Value)
+
+	if !tokenValue.IsValid() {
 		return fmt.Errorf("You must set Provide field")
 	}
 
 	useName := utils.IsString(provider.Provide)
+	isInterface := utils.IsPtrToInterface(provider.Provide)
 	// useFunction := utils.IsString(provider.Provide)
-	if !useName && reflect.ValueOf(provider.Value).IsValid() {
-		typeOfProvided := reflect.TypeOf(provider.Provide)
-		typeOfValue := reflect.TypeOf(provider.Value)
-
-		if !typeOfValue.AssignableTo(typeOfProvided) {
-			return fmt.Errorf("%s is not assignable to %s", typeOfValue, typeOfProvided)
-		}
-
+	if isInterface &&
+		(!valueValue.IsValid() || !valueType.Implements(tokenType.Elem())) {
+		return fmt.Errorf("%s does not implements %s", valueType, tokenType)
+	} else if !useName && !isInterface &&
+		(valueValue.IsValid() && !valueType.AssignableTo(tokenType)) {
+		return fmt.Errorf("%s is not assignable to %s", valueType, tokenType)
 	}
 
 	c.deps = append(c.deps, Dependency{
-		token:   provider.Provide,
-		value:   provider.Value,
-		useName: useName,
+		token:       provider.Provide,
+		value:       provider.Value,
+		useName:     useName,
+		isInterface: isInterface,
 	})
 
 	return nil
@@ -46,16 +51,24 @@ func (c *Container) Get(token interface{}) interface{} {
 	}
 
 	for _, dep := range c.deps {
+		if !dep.useName && useName {
+			continue
+		}
+
 		var matchType bool
-		if !dep.useName {
+		if dep.useName {
+			matchType = dep.token.(string) == name
+		} else if dep.isInterface {
+			typeOfProvided := reflect.TypeOf(dep.token).Elem()
+			matchType = typeOfProvided == reflect.TypeOf(token).Elem()
+		} else {
 			typeOfProvided := reflect.TypeOf(dep.token)
 			matchType = typeOfProvided.AssignableTo(reflect.TypeOf(token))
-		} else if dep.token.(string) == name {
-			matchType = true
+
 		}
 
 		if matchType {
-			if !reflect.ValueOf(dep.value).IsValid() {
+			if !dep.isInterface && !reflect.ValueOf(dep.value).IsValid() {
 				dep.value = reflect.New(reflect.TypeOf(dep.token).Elem()).Interface()
 				c.initializeDep(reflect.TypeOf(dep.token).Elem(), reflect.ValueOf(dep.value).Elem())
 			}
@@ -71,13 +84,13 @@ func (c *Container) initializeDep(t reflect.Type, v reflect.Value) interface{} {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		ft := t.Field(i)
+		tags := ft.Tag.Get("gocodi")
 
-		if !f.CanSet() {
+		if !f.CanSet() || tags == "-" {
 			continue
 		}
 
 		var dep interface{}
-
 		switch ft.Type.Kind() {
 		// case reflect.Map:
 		// 	fallthrough
@@ -85,22 +98,22 @@ func (c *Container) initializeDep(t reflect.Type, v reflect.Value) interface{} {
 		// 	fallthrough
 		// case reflect.Chan:
 		// 	fallthrough
+		case reflect.Interface:
+			dep := reflect.ValueOf(c.Get(reflect.New(ft.Type).Interface()))
+			f.Set(dep)
 		case reflect.Struct:
 			dep := reflect.ValueOf(c.Get(ft.Type))
 			f.Set(dep)
 		case reflect.Ptr:
-			useDep := ft.Tag.Get("gocodi")
-			if useDep == "" {
+			if tags != "" {
+				dep = c.Get(tags)
+			} else {
 				subdep := reflect.New(ft.Type.Elem()).Interface()
 				dep = c.Get(subdep)
-			} else {
-				dep = c.Get(useDep)
 			}
 		default:
-			useDep := ft.Tag.Get("gocodi")
-
-			if useDep != "" {
-				dep = c.Get(useDep)
+			if tags != "" {
+				dep = c.Get(tags)
 			}
 		}
 
@@ -119,10 +132,11 @@ func New() *Container {
 }
 
 type Dependency struct {
-	token      interface{}
-	value      interface{}
-	useName    bool
-	useFactory bool
+	token       interface{}
+	value       interface{}
+	useName     bool
+	useFactory  bool
+	isInterface bool
 }
 
 type Provider struct {
