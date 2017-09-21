@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/xxxtonixxx/gocodi/container"
+	di "github.com/xxxtonixxx/gocodi"
+	"github.com/xxxtonixxx/gocodi/provider"
 )
 
 type Salutor interface {
@@ -31,32 +32,31 @@ type TestDep struct {
 }
 
 func main() {
-	di := container.New()
 	// You must set Provide property. If an error happened it will be returned
-	err := di.Provide(&container.Provider{})
+	err := di.Provide(&provider.Provider{})
 	if err != nil {
 		fmt.Printf("An error happened: %v\n", err)
 	}
 	// When you Get &Test{} to injector, it will create a new instance and return you
-	di.Provide(&container.Provider{Provide: new(Test)})
-	// You can use a name as token provider and set a value
-	di.Provide(&container.Provider{Provide: "hi", Value: &Test{test: "testing DI!"}})
+	di.Provide(&provider.Provider{Provide: new(Test)})
+	// You can use a name as token and return a value
+	di.Provide(&provider.Provider{Provide: "hi", UseValue: "I am a provider value using a string as token"})
 	di.Provide(
-		&container.Provider{Provide: new(TestDep)},
+		&provider.Provider{Provide: new(TestDep)},
 	)
 	di.Provide(
-		&container.Provider{Provide: "test", Value: &TestDep{x: 50}},
+		&provider.Provider{Provide: "test", UseValue: &TestDep{x: 50}},
 	)
 
 	// You can set a int/string/map/array and whatever value using a string token
 	di.Provide(
-		&container.Provider{Provide: "ip", Value: "192.168.1.1"},
+		&provider.Provider{Provide: "ip", UseValue: "192.168.1.1"},
 	)
 
 	// You can use an interface as provider and an struct
 	// which implements the interface as value
 	var token *Salutor
-	err = di.Provide(&container.Provider{Provide: token, Value: new(Test)})
+	err = di.Provide(&provider.Provider{Provide: token, UseValue: &Test{IP: "My IP"}})
 	if err != nil {
 		fmt.Printf("An error happenedd: %v\n", err)
 		return
@@ -66,10 +66,14 @@ func main() {
 	testDI := di.Get(&Test{}).(*Test)
 	fmt.Println(
 		"-->",
+		di.Get("hi"),
 		testDI.DepTest,
 		testDI.Dep,
+		testDI.Hi(),
 		testDI.getIP(),
+		di.Get("test"),
 		testDI != testDI.Saluto,
+		testDI.Saluto,
 		testDI.Saluto.Hi(),
 	)
 }
