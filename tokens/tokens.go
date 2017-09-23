@@ -44,9 +44,7 @@ func (t *Token) Match(token *Token) bool {
 	}
 
 	switch token.GetType() {
-	case Struct:
-
-	case PtrStruct:
+	case Struct, PtrStruct:
 		return reflect.TypeOf(t.Value) == reflect.TypeOf(token.Get())
 	case Interface:
 		return reflect.TypeOf(t.Value).Elem() == reflect.TypeOf(token.Get()).Elem()

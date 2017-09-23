@@ -76,4 +76,22 @@ func main() {
 		testDI.Saluto,
 		testDI.Saluto.Hi(),
 	)
+
+	type MyStruct struct {
+		fieldOne string
+	}
+
+	// You can provide a struct (no pointer)
+	err = di.Provide(&provider.Provider{Provide: MyStruct{}, UseValue: MyStruct{fieldOne: "hi"}})
+	if err != nil {
+		fmt.Printf("An error happenedd: %v\n", err)
+		return
+	}
+
+	testMyStruct := di.Get(MyStruct{}).(MyStruct)
+	fmt.Println(
+		"2---->",
+		testMyStruct,
+		testMyStruct.fieldOne,
+	)
 }

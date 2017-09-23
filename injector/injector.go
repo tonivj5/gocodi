@@ -56,7 +56,7 @@ func (injector *Injector) Provide(provider *provider.Provider) error {
 		// 		`)
 		// }
 		if provider.UseValue != nil &&
-			(!utils.IsPtrToStruct(provider.UseValue) || !utils.IsStruct(provider.UseValue)) {
+			(!utils.IsPtrToStruct(provider.UseValue) && !utils.IsStruct(provider.UseValue)) {
 			return fmt.Errorf("If you provide a struct, the value must be a struct")
 		}
 
